@@ -142,6 +142,8 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         @param _router address input type is the address of the Uniswap V2 Router contract.
         @param _usdcToken IERC20 (address) input type is the address of the supported USDC ERC-20 token contract.
         @dev The constructor enforces non-zero addresses for external contracts and initializes the `BANKCAP`, `MAXIMUM_WITHDRAWAL_IN_USD`, `ROUTER` and `USDC` immutables variables.
+        @dev It also enforces that both external addresses actually hold bytecode. Since `ROUTER` and `USDC` are `immutable`, a mistyped address
+        would otherwise be locked in forever and make every deposit revert, forcing a redeployment.
     */
     constructor(
         uint256 _bankCap,
@@ -151,6 +153,7 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         uint256 _slippageToleranceBps
     ) Ownable(msg.sender) {
         if (_router == address(0) || address(_usdcToken) == address(0)) revert InvalidContract();
+        if (_router.code.length == 0 || address(_usdcToken).code.length == 0) revert InvalidContract();
         if (_slippageToleranceBps > 10000) revert InvalidAmount();
 
         BANKCAP = _bankCap;

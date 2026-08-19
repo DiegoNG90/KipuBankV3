@@ -11,7 +11,7 @@ contract DeployKipuBankV3 is Script {
         uint256 _bankCap = 1_000_000 * 1e6; // 1M USD
         uint256 _maxWithdrawal = 10_000 * 1e6; // 10k USD
         address _router = address(0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3); // UniswapV2Router02 on Sepolia
-        IERC20 _usdc = IERC20(0x1C7d4B196Cb0C7B01D743fbc6116A902379C7A9c); // USDC on Ethereum Sepolia
+        IERC20 _usdc = IERC20(0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238); // USDC (Circle) on Ethereum Sepolia
         uint256 _slippageToleranceBps = 50; // 0.5%
 
         uint256 deployerKey = vm.envUint("SEPOLIA_USER_PRIVATE_KEY");

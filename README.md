@@ -126,8 +126,16 @@ You can check the `index.html` file at `coverage/` folder or you can check the f
 
 ## Deployed contract
 
-Address
+> ⚠️ **The previously deployed instance is non-functional and must be redeployed.**
+> It was deployed with a mistyped USDC address (`0x1C7d4B196Cb0C7B01D743fbc6116A902379C7A9c`), which has no bytecode on Sepolia.
+> The correct Circle USDC address on Sepolia is `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`.
+> Because `USDC` is `immutable`, the old deployment cannot be fixed: every deposit reverts and a new deployment is required.
+> The deploy script has been corrected and the constructor now rejects addresses without bytecode.
+
+Previous (broken) deployment, kept for reference only:
 0x078dEbfbFC8C2764c561Bd636D833Cc569FDb3B2
 
 Etherscan link
 https://sepolia.etherscan.io/address/0x078dEbfbFC8C2764c561Bd636D833Cc569FDb3B2#code
+
+New address: _pending redeployment_

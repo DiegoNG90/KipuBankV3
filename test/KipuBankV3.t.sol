@@ -17,8 +17,8 @@ contract KipuBankV3Test is Test {
 
     uint256 constant _BANK_CAP = 1_000_000 * 1e6; // 1M USDC (6 decimals)
     uint256 constant _MAX_WITHDRAWAL = 10_000 * 1e6; // 10k USDC (6 decimals)
-    address constant _ROUTER = 0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe;
-    address constant _USDC_ADDRESS = 0xfC9201f4116aE6b054722E10b98D904829b469c3;
+    address constant _ROUTER = 0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3;
+    address constant _USDC_ADDRESS = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     uint256 constant _SLIPPAGE_TOLERANCE_BPS = 50; // 0.5%
 
     function setUp() public {
@@ -33,7 +33,8 @@ contract KipuBankV3Test is Test {
         );
         
         // 3. (Opcional pero útil) Mover fondos de ETH a WHALE para que pueda pagar el gas y ETH de depósito
-        vm.deal(_WHALE, 10 ether); 
+        vm.deal(_WHALE, 10 ether);
+        deal(_USDC_ADDRESS, _WHALE, 10_000_000 * 1e6);
         vm.label(_WHALE, "WHALE (Funder)");
         vm.label(address(kipuBank), "KipuBankV3");
     }
@@ -169,6 +170,38 @@ contract KipuBankV3Test is Test {
         assertEq(IERC20(_USDC_ADDRESS).balanceOf(_WHALE), whaleBalance_before + amountToWithdraw);
         
         assertEq(kipuBank.totalDepositsInUSD(), amountToDeposit - amountToWithdraw);
+    }
+
+    /*
+        @notice testRevertWhenUSDCAddressHasNoCode tests that the constructor rejects a USDC address without bytecode.
+        @dev This guards against a mistyped token address being locked into the `USDC` immutable, which would make every deposit revert.
+    */
+    function testRevertWhenUSDCAddressHasNoCode() public {
+        vm.expectRevert(KipuBankV3.InvalidContract.selector);
+
+        new KipuBankV3(
+            _BANK_CAP,
+            _MAX_WITHDRAWAL,
+            _ROUTER,
+            IERC20(address(0x1234)), // no bytecode on any fork
+            _SLIPPAGE_TOLERANCE_BPS
+        );
+    }
+
+    /*
+        @notice testRevertWhenRouterAddressHasNoCode tests that the constructor rejects a router address without bytecode.
+        @dev Same protection as above, applied to the `ROUTER` immutable.
+    */
+    function testRevertWhenRouterAddressHasNoCode() public {
+        vm.expectRevert(KipuBankV3.InvalidContract.selector);
+
+        new KipuBankV3(
+            _BANK_CAP,
+            _MAX_WITHDRAWAL,
+            address(0x1234), // no bytecode on any fork
+            IERC20(_USDC_ADDRESS),
+            _SLIPPAGE_TOLERANCE_BPS
+        );
     }
     
 }
