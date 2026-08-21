@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity > 0.8.0;
+pragma solidity >0.8.0;
 
 import {IUniswapV2Router02} from "v2-periphery/interfaces/IUniswapV2Router02.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -7,10 +7,9 @@ import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
-
 /*
     @title KipuBank V3 Smart Contract
-    @author DiegoNG90 
+    @author DiegoNG90
     @notice This contract accepts deposits of ETH or any ERC20 token (with Uniswap V2 pair),
     converts them to USDC, and credits them to the user's balance, respecting a global BANKCAP.
     Also allows withdrawals of USDC up to a per-transaction limit.
@@ -60,39 +59,37 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
     uint256 public totalDepositsInUSD;
     /// @notice totalDepositOperations variable is a counter for the total number of successful deposit operations that have occurred.
     uint256 public totalDepositOperations;
-    /// @notice totalWithdrawalsOperations variable is a Counter for the total number of successful withdrawal operations that have occurred.  
+    /// @notice totalWithdrawalsOperations variable is a Counter for the total number of successful withdrawal operations that have occurred.
     uint256 public totalWithdrawalsOperations;
 
     /*
-        @notice FeedSet is event that fires when an Oracle has been set succesfully.  
+        @notice FeedSet is event that fires when an Oracle has been set succesfully.
         @params _address address type input, _time uint256 type input
     */
     event FeedSet(address indexed _address, uint256 _time);
     /*
-        @notice SuccessfulEtherWithdrawal is an event that fires when a ETH withdrawal has been made succesfully.  
-        @params _sender address type input, _amount uint256 type input 
+        @notice SuccessfulEtherWithdrawal is an event that fires when a ETH withdrawal has been made succesfully.
+        @params _sender address type input, _amount uint256 type input
     */
     event SuccessfulEtherWithdrawal(address indexed _sender, uint256 _amount);
     /*
-        @notice SuccessfulTokenWithdrawal is an event that fires when a TOKEN withdrawal has been made succesfully.  
+        @notice SuccessfulTokenWithdrawal is an event that fires when a TOKEN withdrawal has been made succesfully.
         @params _sender address type input, _tokenAddress address type input, _amount uint256 type input
     */
     event SuccessfulTokenWithdrawal(address indexed _sender, address indexed _tokenAddress, uint256 _amount);
     /*
-        @notice SuccessfulEtherDeposit is an event that fires when a ETH deposit has been made succesfully.  
+        @notice SuccessfulEtherDeposit is an event that fires when a ETH deposit has been made succesfully.
         @params _sender address type input, _deposit uint256 type input
     */
     event SuccessfulEtherDeposit(address _sender, uint256 _deposit);
     /*
-        @notice SuccessfulTokenDeposit is an event that fires when a TOKEN deposit has been made succesfully.  
+        @notice SuccessfulTokenDeposit is an event that fires when a TOKEN deposit has been made succesfully.
         @params _sender address type input, _tokenAddress address type input, _amount uint256 type input
     */
     event SuccessfulTokenDeposit(address _sender, address _tokenAddress, uint256 _amount);
-        
-    
-    
+
     /// @notice InvalidAmount is a custom error that tells KipuBank user that indicates an invalid input amount.
-    error InvalidAmount(); 
+    error InvalidAmount();
     /// @notice InsufficientBalance is a custom error that indicates the user has no balance to withdraw from.
     error InsufficientBalance();
     /*
@@ -101,22 +98,22 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
     */
     error WithdrawalAmountTooHigh();
     /// @notice BankCapReached is a custom error that indicates the deposit amount would cause the total contract holdings to exceed the global limit (`BANKCAP`).
-    error BankCapReached(); 
+    error BankCapReached();
     /*
-        @notice FailureWithdrawal is a custom error that indicates a failure during the native ETH transfer.  
+        @notice FailureWithdrawal is a custom error that indicates a failure during the native ETH transfer.
         @params _error bytes type input
     */
     error FailureWithdrawal(bytes _error);
-    /// @notice TokenTransferFailed is a custom error that indicates a failure during the external ERC-20 token transfer (transfer/transferFrom). 
+    /// @notice TokenTransferFailed is a custom error that indicates a failure during the external ERC-20 token transfer (transfer/transferFrom).
     error TokenTransferFailed();
-    /* 
-        @notice TokenNotSupported is a custom error that indicates that the token address provided is not the supported USDC token.  
+    /*
+        @notice TokenNotSupported is a custom error that indicates that the token address provided is not the supported USDC token.
         @params _tokenAddress address type input
     */
     error TokenNotSupported(address _tokenAddress);
     /// @notice InvalidContract is a custom error that indicates an invalid contract configuration during deployment or administration.
     error InvalidContract();
-    
+
     // --- NUEVO ERROR V3 ---
     /// @notice SwapFailed is a custom error that indicates a failure during the token swap process via Uniswap V2.
     error SwapFailed();
@@ -125,7 +122,6 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         @params _token address type input
     */
     error TokenSwapNotSupported(address _token);
-
 
     /*
         @notice El constructor inicializa el V3.
@@ -148,7 +144,7 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
     constructor(
         uint256 _bankCap,
         uint256 _maxWithdrawalInUSD,
-        address _router, 
+        address _router,
         IERC20 _usdcToken,
         uint256 _slippageToleranceBps
     ) Ownable(msg.sender) {
@@ -172,7 +168,6 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         depositEther();
     }
 
-
     /*
         @notice depositToken function allows depositing ANY ERC20 token.
         @dev The deposited token is swapped to USDC via Uniswap V2 and credited to the user's balance.
@@ -188,9 +183,9 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
 
         if (_tokenAddress == address(USDC)) {
             if (totalDepositsInUSD + _amount > BANKCAP) revert BankCapReached();
-            
+
             USDC.safeTransferFrom(msg.sender, address(this), _amount);
-            
+
             usdcToCredit = _amount;
         } else {
             uint256 estimatedUsdc = _previewSwap(_tokenAddress, _amount);
@@ -205,14 +200,9 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
             uint256 amountOutMin = _calculateAmountOutMin(estimatedUsdc);
             address[] memory path = _getPath(_tokenAddress);
 
-            uint256[] memory amounts = ROUTER.swapExactTokensForTokens(
-                _amount,
-                amountOutMin,
-                path,
-                address(this),
-                block.timestamp
-            );
-            
+            uint256[] memory amounts =
+                ROUTER.swapExactTokensForTokens(_amount, amountOutMin, path, address(this), block.timestamp);
+
             usdcToCredit = amounts[amounts.length - 1];
             if (usdcToCredit < amountOutMin) revert SwapFailed();
         }
@@ -222,9 +212,7 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         balances[msg.sender][address(USDC)] += usdcToCredit;
 
         emit SuccessfulTokenDeposit(msg.sender, _tokenAddress, _amount);
-
     }
-
 
     /*
         @notice withdrawToken function processes a USDC withdrawal (the only token stored).
@@ -236,8 +224,8 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         against any potential reentrancy vectors.
     */
     function withdrawToken(address _tokenAddress, uint256 _amount) external nonReentrant {
-        if(_tokenAddress != address(USDC)) revert TokenNotSupported(_tokenAddress);
-        
+        if (_tokenAddress != address(USDC)) revert TokenNotSupported(_tokenAddress);
+
         uint256 userBalance = balances[msg.sender][_tokenAddress];
         if (userBalance == 0 || _amount > userBalance) revert InsufficientBalance();
         if (_amount <= 0) revert InvalidAmount();
@@ -253,7 +241,6 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
 
         emit SuccessfulTokenWithdrawal(msg.sender, _tokenAddress, _amount);
     }
-
 
     /*
         @notice depositEther allows a user to deposit native Ether (ETH).
@@ -285,12 +272,18 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         _incrementDepositsInUSD(usdcReceived);
         balances[msg.sender][address(USDC)] += usdcReceived;
 
+        uint256 ethRemaining = address(this).balance;
+        if (ethRemaining > 0) {
+            (bool success, bytes memory err) = msg.sender.call{value: ethRemaining}("");
+            if (!success) revert FailureWithdrawal(err);
+        }
+
         emit SuccessfulEtherDeposit(msg.sender, msg.value);
     }
 
     /*
         @notice incrementWithdrawalsOperations function handles the totalWithdrawalsOperations counter increase.
-        @dev Implemented with 'unchecked' block to bypass default Solidity >= 0.8.0 overflow checks. This is a safe gas optimization, 
+        @dev Implemented with 'unchecked' block to bypass default Solidity >= 0.8.0 overflow checks. This is a safe gas optimization,
         as 'totalWithdrawalsOperations' is a simple uint256 counter, making overflow virtually impossible to reach in practice.
     */
     function _incrementWithdrawalsOperations() private {
@@ -299,9 +292,9 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         }
     }
 
-    /* 
+    /*
         @notice incrementDepositsOperations function handles the totalDepositOperations counter increase.
-        @dev Implemented with 'unchecked' block to bypass default Solidity >= 0.8.0 overflow checks. This is a safe gas optimization, 
+        @dev Implemented with 'unchecked' block to bypass default Solidity >= 0.8.0 overflow checks. This is a safe gas optimization,
         as 'totalDepositOperations' is a simple uint256 counter, making overflow virtually impossible to reach in practice.
     */
     function _incrementDepositsOperations() private {
@@ -310,7 +303,7 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
         }
     }
 
-    /* 
+    /*
         @notice incrementDepositsFunds function handles the totalDepositsInUSD increase.
         @params _amount uint256 input type is the amount to increment.
     */
@@ -363,7 +356,7 @@ contract KipuBankV3 is Ownable, ReentrancyGuard {
 
     /*
         @notice Calculates the minimum output amount based on an estimated output and the contract's slippage tolerance.
-        @dev Reads the immutable SLIPPAGE_TOLERANCE_BPS to determine the floor. 
+        @dev Reads the immutable SLIPPAGE_TOLERANCE_BPS to determine the floor.
         @param estimatedAmountOut uint256 input type is an estimated amount from `_previewSwap` (e.g., 100 USDC).
         @return The minimum amount to accept, accounting for slippage (e.g., 99.5 USDC).
     */

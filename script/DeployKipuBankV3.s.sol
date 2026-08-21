@@ -17,10 +17,10 @@ contract DeployKipuBankV3 is Script {
         uint256 deployerKey = vm.envUint("SEPOLIA_USER_PRIVATE_KEY");
 
         vm.startBroadcast(deployerKey);
-        
+
         kipuBank = new KipuBankV3(_bankCap, _maxWithdrawal, _router, _usdc, _slippageToleranceBps);
-        
+
         vm.stopBroadcast();
-        return kipuBank; 
+        return kipuBank;
     }
 }
