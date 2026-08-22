@@ -36,3 +36,5 @@ jobs:
 
       - name: Run Forge tests
         run: forge test -vvv
+        env:
+          RPC: https://ethereum-sepolia-rpc.publicnode.com

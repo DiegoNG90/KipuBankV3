@@ -12,28 +12,23 @@ contract KipuBankV3Test is Test {
     KipuBankV3 public kipuBank;
 
     address constant _WETH_ADDRESS = 0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91;
-    address constant _WHALE = 0x6a956f0AEd3b8625F20d696A5e934A5DE8C27A2C; 
-    address constant _USER = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC; 
+    address constant _WHALE = 0x6a956f0AEd3b8625F20d696A5e934A5DE8C27A2C;
+    address constant _USER = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
 
     uint256 constant _BANK_CAP = 1_000_000 * 1e6; // 1M USDC (6 decimals)
     uint256 constant _MAX_WITHDRAWAL = 10_000 * 1e6; // 10k USDC (6 decimals)
-    address constant _ROUTER = 0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe;
-    address constant _USDC_ADDRESS = 0xfC9201f4116aE6b054722E10b98D904829b469c3;
+    address constant _ROUTER = 0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3;
+    address constant _USDC_ADDRESS = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     uint256 constant _SLIPPAGE_TOLERANCE_BPS = 50; // 0.5%
 
     function setUp() public {
         vm.createSelectFork(vm.envString("RPC"));
-        
-        kipuBank = new KipuBankV3(
-            _BANK_CAP,
-            _MAX_WITHDRAWAL,
-            _ROUTER,
-            IERC20(_USDC_ADDRESS),
-            _SLIPPAGE_TOLERANCE_BPS
-        );
-        
+
+        kipuBank = new KipuBankV3(_BANK_CAP, _MAX_WITHDRAWAL, _ROUTER, IERC20(_USDC_ADDRESS), _SLIPPAGE_TOLERANCE_BPS);
+
         // 3. (Opcional pero útil) Mover fondos de ETH a WHALE para que pueda pagar el gas y ETH de depósito
-        vm.deal(_WHALE, 10 ether); 
+        vm.deal(_WHALE, 10 ether);
+        deal(_USDC_ADDRESS, _WHALE, 10_000_000 * 1e6);
         vm.label(_WHALE, "WHALE (Funder)");
         vm.label(address(kipuBank), "KipuBankV3");
     }
@@ -44,7 +39,7 @@ contract KipuBankV3Test is Test {
     */
     function testDepositUSDCSuccess() public {
         uint256 amountToDeposit = 1_000 * 1e6;
-        
+
         vm.startPrank(_WHALE);
 
         IERC20(_USDC_ADDRESS).approve(address(kipuBank), amountToDeposit);
@@ -57,7 +52,6 @@ contract KipuBankV3Test is Test {
         assertEq(IERC20(_USDC_ADDRESS).balanceOf(address(kipuBank)), amountToDeposit, "Contract USDC balance mismatch");
         assertEq(kipuBank.totalDepositsInUSD(), amountToDeposit, "Total bank deposits mismatch");
     }
-
 
     /*
         @notice testDepositEtherSwapsToUSDC tests the deposit of native ETH (V3 functionality).
@@ -77,7 +71,7 @@ contract KipuBankV3Test is Test {
 
         uint256 usdcBalanceAfter = kipuBank.balances(_WHALE, _USDC_ADDRESS);
         uint256 bankTotalAfter = kipuBank.totalDepositsInUSD();
-        
+
         assertGt(usdcBalanceAfter, usdcBalanceBefore, "User USDC balance should increase");
         assertGt(bankTotalAfter, bankTotalBefore, "Bank total deposits should increase");
         uint256 contractUSDC = IERC20(_USDC_ADDRESS).balanceOf(address(kipuBank));
@@ -91,23 +85,18 @@ contract KipuBankV3Test is Test {
         @dev Deploys a new, local bank with a tiny cap for testing.
     */
     function testRevertWhenUSDCDepositExceedsCap() public {
-        uint256 tinyCap = 100 * 1e6; 
-        KipuBankV3 localBank = new KipuBankV3(
-            tinyCap,
-            _MAX_WITHDRAWAL,
-            _ROUTER,
-            IERC20(_USDC_ADDRESS),
-            _SLIPPAGE_TOLERANCE_BPS
-        );
+        uint256 tinyCap = 100 * 1e6;
+        KipuBankV3 localBank =
+            new KipuBankV3(tinyCap, _MAX_WITHDRAWAL, _ROUTER, IERC20(_USDC_ADDRESS), _SLIPPAGE_TOLERANCE_BPS);
 
         vm.startPrank(_WHALE);
 
         IERC20(_USDC_ADDRESS).approve(address(localBank), 200 * 1e6);
-        
+
         vm.expectRevert();
-        
+
         localBank.depositToken(_USDC_ADDRESS, 101 * 1e6);
-        
+
         vm.stopPrank();
     }
 
@@ -119,27 +108,21 @@ contract KipuBankV3Test is Test {
         // 1. SETUP: Crear un banco con un cap de solo 50 USDC (50 * 10^6)
         // El valor real en decimales es 50,000,000
         uint256 tinyCap = 100_000; // 0.1 * 1e6
-        KipuBankV3 localBank = new KipuBankV3(
-            tinyCap,
-            _MAX_WITHDRAWAL,
-            _ROUTER,
-            IERC20(_USDC_ADDRESS),
-            _SLIPPAGE_TOLERANCE_BPS
-        );
+        KipuBankV3 localBank =
+            new KipuBankV3(tinyCap, _MAX_WITHDRAWAL, _ROUTER, IERC20(_USDC_ADDRESS), _SLIPPAGE_TOLERANCE_BPS);
 
         vm.startPrank(_WHALE);
-        
+
         vm.expectRevert();
-        
 
         localBank.depositEther{value: 1 ether}();
-        
+
         vm.stopPrank();
     }
 
     /*
         @notice Tests the happy path for withdrawing USDC.
-        @dev 
+        @dev
         1. Deposits 1000 USDC.
         2. Withdraws 400 USDC.
         3. Verifies internal and external balances are correct.
@@ -157,18 +140,49 @@ contract KipuBankV3Test is Test {
 
         uint256 amountToWithdraw = 400 * 1e6;
         vm.startPrank(_WHALE);
-        
+
         kipuBank.withdrawToken(_USDC_ADDRESS, amountToWithdraw);
-        
+
         vm.stopPrank();
 
         assertEq(kipuBank.balances(_WHALE, _USDC_ADDRESS), amountToDeposit - amountToWithdraw);
-        
+
         assertEq(IERC20(_USDC_ADDRESS).balanceOf(address(kipuBank)), bankBalance_before - amountToWithdraw);
-        
+
         assertEq(IERC20(_USDC_ADDRESS).balanceOf(_WHALE), whaleBalance_before + amountToWithdraw);
-        
+
         assertEq(kipuBank.totalDepositsInUSD(), amountToDeposit - amountToWithdraw);
     }
-    
+
+    /*
+        @notice testRevertWhenUSDCAddressHasNoCode tests that the constructor rejects a USDC address without bytecode.
+        @dev This guards against a mistyped token address being locked into the `USDC` immutable, which would make every deposit revert.
+    */
+    function testRevertWhenUSDCAddressHasNoCode() public {
+        vm.expectRevert(KipuBankV3.InvalidContract.selector);
+
+        new KipuBankV3(
+            _BANK_CAP,
+            _MAX_WITHDRAWAL,
+            _ROUTER,
+            IERC20(address(0x1234)), // no bytecode on any fork
+            _SLIPPAGE_TOLERANCE_BPS
+        );
+    }
+
+    /*
+        @notice testRevertWhenRouterAddressHasNoCode tests that the constructor rejects a router address without bytecode.
+        @dev Same protection as above, applied to the `ROUTER` immutable.
+    */
+    function testRevertWhenRouterAddressHasNoCode() public {
+        vm.expectRevert(KipuBankV3.InvalidContract.selector);
+
+        new KipuBankV3(
+            _BANK_CAP,
+            _MAX_WITHDRAWAL,
+            address(0x1234), // no bytecode on any fork
+            IERC20(_USDC_ADDRESS),
+            _SLIPPAGE_TOLERANCE_BPS
+        );
+    }
 }
