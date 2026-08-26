@@ -13,6 +13,8 @@ KipuBank V3 is a decentralized bank that accepts user deposits of native ETH or 
 - **USDC-Centric Accounting:** All internal accounting (`balances` mapping) is now denominated _only_ in USDC, simplifying the contract's state.
 - **Immutable Risk Parameters:** Critical risk parameters (`BANKCAP`, `MAXIMUM_WITHDRAWAL_IN_USD`, `SLIPPAGE_TOLERANCE_BPS`) are set in the constructor. This makes the contract's behavior predictable and allows different "flavors" of the bank to be deployed with different risk policies.
 - **Security First:** Implements the **Checks-Effects-Interactions (CEI)** pattern and `ReentrancyGuard` on withdrawals.
+- **Constructor address checks:** Router and USDC must be non-zero **and** have bytecode (`address.code.length > 0`), so a mistyped token address cannot be deployed silently.
+- **ETH leftover refund:** After `depositEther()`, any native ETH left on the contract (Uniswap V2 router refund) is returned to the depositor.
 
 ## 2. Core Design Decisions
 
@@ -76,10 +78,9 @@ Check test coverage
 
 #### Deploy to Sepolia Testnet
 
-### Deploy to Sepolia Testnet
-
 1.  Ensure your `.env` variables are set (RPC, Private Key, Etherscan Key).
-2.  Ensure your wallet has Sepolia ETH for gas.
+2.  `SEPOLIA_USER_PRIVATE_KEY` must be the **private key** of the funded Sepolia account (hex with `0x` prefix), not the address.
+3.  Ensure that account has Sepolia ETH for gas.
 
 Run the script, which will broadcast, deploy, and verify all in one step:
 
@@ -124,18 +125,27 @@ You can check the `index.html` file at `coverage/` folder or you can check the f
 | `src/KipuBankV3.sol`            | **79.27% (65/82)** | **67.31% (70/104)** | 21.05% (4/19) | **91.67% (11/12)** |
 | **Total**                       | **69.89% (65/93)** | **59.83% (70/117)** | 21.05% (4/19) | **84.62% (11/13)** |
 
-## Deployed contract
+## 5. Deployed contract (Sepolia)
 
-> ⚠️ **The previously deployed instance is non-functional and must be redeployed.**
-> It was deployed with a mistyped USDC address (`0x1C7d4B196Cb0C7B01D743fbc6116A902379C7A9c`), which has no bytecode on Sepolia.
-> The correct Circle USDC address on Sepolia is `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`.
-> Because `USDC` is `immutable`, the old deployment cannot be fixed: every deposit reverts and a new deployment is required.
-> The deploy script has been corrected and the constructor now rejects addresses without bytecode.
+**Current (functional) deployment**
 
-Previous (broken) deployment, kept for reference only:
-0x078dEbfbFC8C2764c561Bd636D833Cc569FDb3B2
+| | |
+| --- | --- |
+| Address | [`0xd8473b57CAdEd25D7b41b4c451e74C1Bf92DD3ca`](https://sepolia.etherscan.io/address/0xd8473b57CAdEd25D7b41b4c451e74C1Bf92DD3ca) |
+| USDC (Circle Sepolia) | [`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`](https://sepolia.etherscan.io/address/0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238) |
+| Uniswap V2 Router | `0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3` |
+| BANKCAP | 1,000,000 USDC |
+| Max withdrawal / tx | 10,000 USDC |
+| Slippage | 50 BPS (0.5%) |
 
-Etherscan link
-https://sepolia.etherscan.io/address/0x078dEbfbFC8C2764c561Bd636D833Cc569FDb3B2#code
+**Previous (broken) deployment — do not use**
 
-New address: _pending redeployment_
+[`0x078dEbfbFC8C2764c561Bd636D833Cc569FDb3B2`](https://sepolia.etherscan.io/address/0x078dEbfbFC8C2764c561Bd636D833Cc569FDb3B2#code) was deployed with a typo'd USDC address (`0x1C7d4B196Cb0C7B01D743fbc6116A902379C7A9c`) that has **no bytecode** on Sepolia. Because `USDC` is `immutable`, every deposit reverts and that instance cannot be repaired.
+
+## 6. Post-course fixes ([PR #2](https://github.com/DiegoNG90/KipuBankV3/pull/2))
+
+- Corrected Circle USDC in `script/DeployKipuBankV3.s.sol`.
+- Constructor reverts `InvalidContract()` if the router or USDC address has no code.
+- OpenZeppelin v5 import path: `ReentrancyGuard` lives in `contracts/utils/`, not `contracts/security/`.
+- `depositEther()` refunds leftover ETH from the Uniswap V2 router to the depositor.
+- CI (`.github/workflows/test.yml`, added in the original course commit) now has a public Sepolia `RPC` for fork tests, and `forge fmt --check` is clean.
