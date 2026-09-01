@@ -8,6 +8,9 @@ out/
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
+# Generated coverage reports (lcov/gcov HTML)
+coverage/
+
 # Docs
 docs/
 

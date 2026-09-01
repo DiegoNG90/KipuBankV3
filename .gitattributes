@@ -1,0 +1,3 @@
+# Exclude generated coverage reports from GitHub language statistics.
+# Otherwise Linguist counts lcov HTML/CSS and labels the repo as HTML.
+coverage/** linguist-generated
